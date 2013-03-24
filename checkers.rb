@@ -9,7 +9,10 @@ class Piece
   end
 
   def try_move(move)
-    position.zip(move).map { |pair| pair.reduce(0, :+) }
+    # puts "in try move"
+    # puts "position: #{position}"
+    # puts "move: #{move}"
+    position.zip(move).map { |pair| pair.reduce(:+) }
   end
 
   def valid_move?(move)
@@ -21,17 +24,41 @@ class Piece
     true
   end
 
+  def can_make_a_move?
+    advances.each { |advance| return true if valid_move?(advance) }
+    jumps.each { |jump| return true if valid_move?(jump) }
+
+    false
+  end
+
   def valid_jump?(move)
+    puts "in valid jump"
+    puts "move: #{move}"
+
     jumped_square = try_move(jumped_squares[move])
+    puts "jumped square #{jumped_square}"
     maybe_a_piece = board[*jumped_square]
 
     jumps.include?(move) && maybe_a_piece.class.is_a?(Piece) && maybe_a_piece.color != color
   end
 
+  def find_move(destination)
+    # puts "in find move"
+    # puts "destination #{destination}"
+    # puts "position #{position}"
+    destination.zip(position).map { |pair| pair.reduce(:-) }
+  end
+
   def move_to(destination)
-    #move = destination -
-    #if valid_move?(destination)
-    #board[*destination] =
+    move = find_move(destination)
+    # puts "in move to"
+    # puts "destination #{destination}"
+    # puts "move #{move}"
+    if valid_move?(move)
+      board[*position] = nil
+      board[*destination] = self
+      self.position = destination
+    end
   end
 
 end
@@ -39,7 +66,7 @@ end
 class Pawn < Piece
 
   def render
-    "o ".colorize(color)
+    " o".colorize(color)
   end
 
   def multi_jump?
@@ -141,11 +168,13 @@ class Board
   end
 
   def display
+    puts "   1 2 3 4 5 6 7 8 ".colorize(:color => :yellow)
     rows.each_with_index do |row, y|
-      puts
+      print "#{y+1} ".colorize(:color => :yellow)
       row.each_index do |x|
         render_square(x, y)
       end
+      puts
     end
 
     puts
@@ -154,10 +183,7 @@ class Board
 
   def valid_piece?(piece, player)
     return false if self[*piece].nil?
-
-    if player.color == self[*piece].color
-      true
-    end
+    true if player.color == self[*piece].color
   end
 
   def game_over?
@@ -180,42 +206,88 @@ class Player
   def initialize(color)
     @color = color
   end
+
 end
 
 class HumanPlayer < Player
 
   def make_move(board)
     piece_coords = get_origin(board)
-    destination = get_destination(board)
+    destination = get_destination(piece_coords, board)
 
     x, y = piece_coords
 
+    # puts "in make move"
+    # puts "piece_coords #{piece_coords}"
+    # puts "origin #{x},#{y}"
+    # puts "destination #{destination}"
+
     board[x, y].move_to(destination)
+
+
   end
 
   def get_origin(board)
     piece_coords = nil
     until piece_coords
       puts "Choose a piece to move by its x and y coordinates (ex: 1, 3)"
-      piece_coords = gets.chomp.split(/\W+/)
+      piece_coords = gets.chomp.split(/\W+/).map(&:to_i)
+      piece_coords = adjust_coords(piece_coords)
       x, y = piece_coords
-      piece_coords = nil unless board[x, y].valid_square?
+      piece_coords = nil if origin_wrong?(x, y, board)
     end
+
 
     piece_coords
   end
 
-  def get_destination(board)
+  def origin_wrong?(x, y, board)
+    if board[x, y].nil?
+      puts "That's an empty square, bud."
+    elsif board[x, y].color != color
+      puts "Wrong color, friend."
+    elsif !board[x, y].can_make_a_move?
+      puts "That piece can't make a move."
+    else
+      return false
+    end
+
+    true
+  end
+
+  def get_destination(origin, board)
     destination = nil
     until destination
       puts "Choose a destination by its x and y coordinates (ex: 1, 3)"
-      destination = gets.chomp.split(/\W+/)
-
+      destination = gets.chomp.split(/\W+/).map(&:to_i)
+      destination = adjust_coords(destination)
       x, y = destination
-      destination = nil unless board[x, y].valid_move?
+      destination = nil if destination_wrong?(x, y, origin, board)
     end
 
+    # puts "in destination"
+    # puts "destination #{destination}"
+
     destination
+  end
+
+  def destination_wrong?(x, y, origin, board)
+    piece = board[*origin]
+    move = piece.find_move([x, y])
+
+    # puts "in destination wrong"
+    # puts "#{move}"
+
+    unless piece.valid_move?(move)
+      puts "Invalid move!"
+      return true
+    end
+
+    false
+  end
+
+  def adjust_coords(coords)
+    [coords[0] - 1, coords[1] - 1]
   end
 
 end
@@ -272,6 +344,6 @@ class Checkers
   end
 end
 
-#g = Checkers.new
-#g.play
+g = Checkers.new
+g.play
 
