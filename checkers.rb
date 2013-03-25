@@ -31,6 +31,12 @@ class Piece
     false
   end
 
+  def can_make_a_jump?
+    jumps.each { |jump| return true if valid_move?(jump) }
+
+    false
+  end
+
   def valid_jump?(move)
     puts "in valid jump"
     puts "move: #{move}"
@@ -58,6 +64,11 @@ class Piece
       board[*position] = nil
       board[*destination] = self
       self.position = destination
+
+      if valid_jump?(move)
+        jumped_square = try_move(jumped_squares[move])
+        board[*jumped_square] = nil
+      end
     end
   end
 
@@ -96,6 +107,10 @@ end
 class King < Piece
   def render
     "OO".colorize(color)
+  end
+
+  def jumped_squares
+    {[-2,2] => [-1,1] , [2,2] => [1,1], [-2,-2] => [-1,-1], [2,-2] => [1,-1]}
   end
 
   def advances
@@ -213,18 +228,20 @@ class HumanPlayer < Player
 
   def make_move(board)
     piece_coords = get_origin(board)
-    destination = get_destination(piece_coords, board)
-
     x, y = piece_coords
 
-    # puts "in make move"
-    # puts "piece_coords #{piece_coords}"
-    # puts "origin #{x},#{y}"
-    # puts "destination #{destination}"
-
+    destination = get_destination(piece_coords, board)
     board[x, y].move_to(destination)
 
-
+    while board[x, y].can_make_a_jump?
+      destination = get_destination(piece_coords, board)
+      # puts "in make move"
+      # puts "piece_coords #{piece_coords}"
+      # puts "origin #{x},#{y}"
+      # puts "destination #{destination}"
+      board[x, y].move_to(destination)
+      x, y = destination
+    end
   end
 
   def get_origin(board)
